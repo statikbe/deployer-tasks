@@ -1,6 +1,7 @@
 <?php
 namespace Deployer;
 
+// Voight is hosted on the thekindkids.be domain (Statik.be sister-org infrastructure).
 set('statik_voight_script_url', 'https://voight.thekindkids.be/scripts/voight.sh');
 
 desc('Download and run the Voight versioning script in the release path');

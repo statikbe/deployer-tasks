@@ -7,7 +7,7 @@ require __DIR__ . '/tasks/voight.php';
 
 // Statik.be opinionated defaults
 set('keep_releases', 5);
-set('writable_mode', 'chown'); // Combell hosts do not have ACL installed
+set('writable_mode', 'chown'); // Combell hosts do not have ACL installed (.env already shared by recipe/craftcms.php)
 
 // Run Voight as a post-deploy step. Mirrors the working KNXCOU wiring:
 // deploy:success first fires from inside deploy:publish, then statik:voight
