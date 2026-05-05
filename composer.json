@@ -10,6 +10,7 @@
         "deployer/deployer": "^8.0"
     },
     "require-dev": {
+        "laravel/pint": "^1.0",
         "pestphp/pest": "^3.0",
         "phpstan/phpstan": "^2.0"
     },
@@ -30,5 +31,10 @@
         "allow-plugins": {
             "pestphp/pest-plugin": true
         }
+    },
+    "scripts": {
+        "format": "pint",
+        "analyse": "phpstan",
+        "test": "pest"
     }
 }
