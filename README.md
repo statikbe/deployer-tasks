@@ -55,9 +55,10 @@ after('deploy', 'statik:voight');
 
 | Task | Description |
 |---|---|
+| `statik:reload-phpfpm` | Reload PHP-FPM safely with mutex, debounce, and opcache validation. Wired by both starters to `after('deploy:symlink', ...)`. |
 | `statik:voight` | Download and run the Voight versioning script in the release path. |
 
-More tasks (composer install with secret env, local-build asset rsync, maintenance banner, hosting helpers, config-file sync) ship in upcoming releases.
+More tasks (composer install with secret env, local-build asset rsync, maintenance banner, config-file sync) ship in upcoming releases.
 
 ## Development
 
