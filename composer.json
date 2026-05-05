@@ -1,0 +1,34 @@
+{
+    "name": "statikbe/deployer-tasks",
+    "description": "Reusable Deployer 8 tasks for Statik.be projects (Laravel, Craft CMS, common integrations).",
+    "type": "library",
+    "license": "MIT",
+    "keywords": ["deployer", "deployment", "laravel", "craftcms", "statikbe"],
+    "homepage": "https://github.com/statikbe/deployer-tasks",
+    "require": {
+        "php": "^8.3",
+        "deployer/deployer": "^8.0"
+    },
+    "require-dev": {
+        "pestphp/pest": "^3.0",
+        "phpstan/phpstan": "^2.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "Statikbe\\DeployerTasks\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Statikbe\\DeployerTasks\\Tests\\": "tests/"
+        }
+    },
+    "minimum-stability": "stable",
+    "prefer-stable": true,
+    "config": {
+        "sort-packages": true,
+        "allow-plugins": {
+            "pestphp/pest-plugin": true
+        }
+    }
+}
