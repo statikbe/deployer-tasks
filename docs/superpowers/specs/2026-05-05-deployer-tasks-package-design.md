@@ -66,7 +66,7 @@ deployer-tasks/
 
 ### Naming conventions
 
-- Tasks: `statik:<concern>:<verb>` (e.g., `statik:voight:scan`, `statik:hosting:opcache_reset`, `statik:assets:build_and_sync`).
+- Tasks: `statik:<concern>` for single-action concerns (e.g., `statik:voight`), or `statik:<concern>:<verb>` when a concern has multiple actions (e.g., `statik:hosting:opcache_reset`, `statik:hosting:queue_restart`, `statik:assets:build_and_sync`).
 - Configuration keys (`set('...')`): `statik_<concern>_<key>` (e.g., `statik_voight_endpoint`, `statik_voight_lock_files`). Prefix prevents collisions with Deployer's built-in keys.
 - Helper PHP classes: `Statikbe\DeployerTasks\<Concern>\<ClassName>`.
 
