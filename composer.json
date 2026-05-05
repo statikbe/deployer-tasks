@@ -34,7 +34,7 @@
     },
     "scripts": {
         "format": "pint",
-        "analyse": "phpstan",
+        "analyse": "phpstan analyse --memory-limit=1G",
         "test": "pest"
     }
 }
