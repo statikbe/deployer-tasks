@@ -7,9 +7,6 @@ set('statik_reload_phpfpm_symlink_wait_seconds', 60);
 set('statik_reload_phpfpm_freshness_seconds', 30);
 set('statik_reload_phpfpm_max_attempts', 2);
 
-set('basic_auth_user', '');
-set('basic_auth_password', '');
-
 desc('Reload PHP-FPM safely with mutex, debounce, and opcache validation');
 task('statik:reload-phpfpm', function () {
     // Resolve absolute paths — deploy_path / release_path may contain `~`.
@@ -34,8 +31,8 @@ task('statik:reload-phpfpm', function () {
     // serves as access control; removed in the finally block below.
     $probe = '_deploy_probe_' . bin2hex(random_bytes(24)) . '.php';
     upload(__DIR__ . '/stubs/opcache-probe.php', "{{release_path}}/public/{$probe}");
-    $basicUser = (string) get('basic_auth_user');
-    $basicPass = (string) get('basic_auth_password');
+    $basicUser = (string) get('basic_auth_user', '');
+    $basicPass = (string) get('basic_auth_password', '');
     $authPrefix = '';
     if ($basicUser !== '' && $basicPass !== '') {
         $authPrefix = rawurlencode($basicUser) . ':' . rawurlencode($basicPass) . '@';
