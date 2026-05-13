@@ -7,6 +7,9 @@ set('statik_reload_phpfpm_symlink_wait_seconds', 60);
 set('statik_reload_phpfpm_freshness_seconds', 30);
 set('statik_reload_phpfpm_max_attempts', 2);
 
+set('basic_auth_user', '');
+set('basic_auth_password', '');
+
 desc('Reload PHP-FPM safely with mutex, debounce, and opcache validation');
 task('statik:reload-phpfpm', function () {
     // Resolve absolute paths — deploy_path / release_path may contain `~`.
@@ -31,28 +34,9 @@ task('statik:reload-phpfpm', function () {
     // serves as access control; removed in the finally block below.
     $probe = '_deploy_probe_' . bin2hex(random_bytes(24)) . '.php';
     upload(__DIR__ . '/stubs/opcache-probe.php', "{{release_path}}/public/{$probe}");
-    // Optional basic auth: pulled from the deployed .env on the remote so the
-    // probe can pass through .htaccess on staging hosts. Both vars must be set;
-    // partial config is treated as "no auth" so the recipe works unchanged on
-    // projects without basic auth. Don't log $user/$pass anywhere.
-    $envContent = (string) run("cat {{release_path}}/.env 2>/dev/null || true");
-    $readDotenv = static function (string $content, string $key): string {
-        $pattern = '/^\s*(?:export\s+)?' . preg_quote($key, '/') . '=(.*)$/m';
-        if (! preg_match($pattern, $content, $m)) {
-            return '';
-        }
-        $value = trim($m[1]);
-        if (preg_match('/^"(.*)"$/', $value, $q) || preg_match("/^'(.*)'$/", $value, $q)) {
-            return $q[1];
-        }
-        if (($hash = strpos($value, ' #')) !== false) {
-            $value = rtrim(substr($value, 0, $hash));
-        }
-        return $value;
-    };
+    $basicUser = (string) get('basic_auth_user');
+    $basicPass = (string) get('basic_auth_password');
     $authPrefix = '';
-    $basicUser = $readDotenv($envContent, 'BASIC_AUTH_USER');
-    $basicPass = $readDotenv($envContent, 'BASIC_AUTH_PASSWORD');
     if ($basicUser !== '' && $basicPass !== '') {
         $authPrefix = rawurlencode($basicUser) . ':' . rawurlencode($basicPass) . '@';
     }

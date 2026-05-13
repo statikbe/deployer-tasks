@@ -61,11 +61,22 @@ after('deploy', 'statik:voight');
 More tasks (composer install with secret env, local-build asset rsync, maintenance banner, config-file sync) ship in upcoming releases.
 
 ### reload-phpfpm
-There are optional settings to add to your .env file for when the project is protected with .htacces.
 
-The following properties can be set in your .env file for this
-- BASIC_AUTH_USER='htaccess_user'
-- BASIC_AUTH_PASSWORD='htaccess_password'
+If the probe URL is behind `.htaccess` basic auth, configure the credentials in your project's `deploy.php` after the `require` line:
+
+```php
+require 'vendor/statikbe/deployer-tasks/recipe/laravel.php';
+
+set('basic_auth_user', 'htaccess_user');
+set('basic_auth_password', 'htaccess_password');
+
+host('production')->set(/* ... */);
+```
+
+Both values must be set; if either is empty the task runs without auth. You can also source them from the environment (e.g. `set('basic_auth_user', getenv('BASIC_AUTH_USER'));`) — handy for Bitbucket Pipelines repository variables. Per-host overrides work too: `host('staging')->set('basic_auth_user', '...');`.
+
+The application's `.env` no longer needs `BASIC_AUTH_USER` / `BASIC_AUTH_PASSWORD` for this task. Existing projects should remove those keys from `.env` and move them to `deploy.php` via the `set()` calls above.
+
 ## Development
 
 ```bash
