@@ -60,6 +60,12 @@ after('deploy', 'statik:voight');
 
 More tasks (composer install with secret env, local-build asset rsync, maintenance banner, config-file sync) ship in upcoming releases.
 
+### reload-phpfpm
+There are optional settings to add to your .env file for when the project is protected with .htacces.
+
+The following properties can be set in your .env file for this
+- BASIC_AUTH_USER='htaccess_user'
+- BASIC_AUTH_PASSWORD='htaccess_password'
 ## Development
 
 ```bash
