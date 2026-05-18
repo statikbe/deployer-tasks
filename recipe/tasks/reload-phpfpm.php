@@ -38,9 +38,9 @@ task('statik:reload-phpfpm', function () {
         $authPrefix = rawurlencode($basicUser) . ':' . rawurlencode($basicPass) . '@';
     }
     if ($authPrefix !== '') {
-        writeln('No basic auth enabled, using curl without auth');
-    } else {
         writeln('Basic auth has been set and will be used!');
+    } else {
+        writeln('No basic auth enabled, using curl without auth');
     }
     $url = "https://{$authPrefix}{{http_host}}/{$probe}";
 
