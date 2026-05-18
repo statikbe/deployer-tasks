@@ -44,14 +44,56 @@ task('statik:reload-phpfpm', function () {
     }
     $url = "https://{$authPrefix}{{http_host}}/{$probe}";
 
+    // Fetch the probe URL. Body, HTTP code, and decoded JSON are returned
+    // separately so an unexpected response (redirect HTML, Laravel 404 page,
+    // basic-auth challenge, …) can be surfaced with its actual status and a
+    // body snippet instead of silently being treated as `start_time=0`.
+    $fetchProbe = function (string $url): array {
+        $sep = '---HTTP_CODE---';
+        $raw = (string) run(
+            "curl -sL --max-redirs 3 --max-time 10 -w '\\n{$sep}%{http_code}' '{$url}' || true"
+        );
+        $parts = explode("\n{$sep}", $raw, 2);
+        $body = $parts[0] ?? '';
+        $code = isset($parts[1]) ? (int) trim($parts[1]) : 0;
+        $json = json_decode($body, true);
+
+        return [
+            'body' => $body,
+            'http_code' => $code,
+            'json' => is_array($json) ? $json : null,
+        ];
+    };
+
+    // Format a probe response for an error message: HTTP code + body snippet.
+    $describeProbe = function (array $resp) use ($url): string {
+        $snippet = trim(preg_replace('/\s+/', ' ', $resp['body']) ?? '');
+        if ($snippet === '') {
+            $snippet = '(empty body)';
+        } elseif (strlen($snippet) > 200) {
+            $snippet = substr($snippet, 0, 200) . '…';
+        }
+
+        return "probe URL {$url} returned HTTP {$resp['http_code']}, body: {$snippet}";
+    };
+
     try {
         $debounceSeconds = (int) get('statik_reload_phpfpm_debounce_seconds');
         $freshnessSeconds = (int) get('statik_reload_phpfpm_freshness_seconds');
         $maxAttempts = (int) get('statik_reload_phpfpm_max_attempts');
 
-        $before = json_decode((string) run("curl -sL --max-redirs 3 --max-time 10 '{$url}' || true"), true) ?: [];
-        $beforeStart = (int) ($before['start_time'] ?? 0);
-        $beforeNow = (int) ($before['now'] ?? 0);
+        $before = $fetchProbe($url);
+        // Pre-flight: a non-JSON or non-200 response means the probe URL is
+        // misconfigured (wrong http_host, redirect target, htaccess routing
+        // the .php through Laravel, basic-auth challenge, etc.). Running the
+        // PHP-FPM reload now would still leave us unable to validate it, so
+        // fail fast with a message that names the actual cause.
+        if ($before['http_code'] !== 200 || $before['json'] === null) {
+            throw new \RuntimeException('Pre-flight probe failed — ' . $describeProbe($before));
+        }
+
+        $beforeStart = (int) ($before['json']['start_time'] ?? 0);
+        $beforeNow = (int) ($before['json']['now'] ?? 0);
 
         // Debounce: a single FPM master typically serves every subsite on a
         // shared host, so a recent reload by a sibling deploy already covers ours.
@@ -61,6 +103,7 @@ task('statik:reload-phpfpm', function () {
             return;
         }
 
+        $after = $before;
         $afterStart = 0;
         $afterAge = 0;
         for ($attempt = 1; $attempt <= $maxAttempts; $attempt++) {
@@ -73,9 +116,15 @@ task('statik:reload-phpfpm', function () {
             }
             sleep(2);
 
-            $after = json_decode((string) run("curl -sL --max-redirs 3 --max-time 10 '{$url}' || true"), true) ?: [];
-            $afterStart = (int) ($after['start_time'] ?? 0);
-            $afterAge = (int) ($after['now'] ?? 0) - $afterStart;
+            $after = $fetchProbe($url);
+            if ($after['json'] === null) {
+                // A non-JSON response would silently collapse to `start_time=0`
+                // below; throw with the response detail so the operator can
+                // diagnose what's actually wrong.
+                throw new \RuntimeException('Post-reload probe failed — ' . $describeProbe($after));
+            }
+            $afterStart = (int) ($after['json']['start_time'] ?? 0);
+            $afterAge = (int) ($after['json']['now'] ?? 0) - $afterStart;
 
             // Validate: opcache start_time advanced AND is fresh on the server's
             // own clock (rules out an unrelated old FPM restart).
@@ -90,7 +139,14 @@ task('statik:reload-phpfpm', function () {
             }
         }
 
-        throw new \RuntimeException("PHP-FPM reload validation failed: start_time={$afterStart}, age={$afterAge}s");
+        throw new \RuntimeException(sprintf(
+            'PHP-FPM reload validation failed: start_time=%d, age=%ds (after %d attempt%s); last probe response: HTTP %d',
+            $afterStart,
+            $afterAge,
+            $maxAttempts,
+            $maxAttempts === 1 ? '' : 's',
+            $after['http_code']
+        ));
     } finally {
         run("rm -f {{release_path}}/public/{$probe} || true");
     }
