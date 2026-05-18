@@ -49,7 +49,7 @@ task('statik:reload-phpfpm', function () {
         $freshnessSeconds = (int) get('statik_reload_phpfpm_freshness_seconds');
         $maxAttempts = (int) get('statik_reload_phpfpm_max_attempts');
 
-        $before = json_decode((string) run("curl -s --max-time 10 '{$url}' || true"), true) ?: [];
+        $before = json_decode((string) run("curl -sL --max-redirs 3 --max-time 10 '{$url}' || true"), true) ?: [];
         $beforeStart = (int) ($before['start_time'] ?? 0);
         $beforeNow = (int) ($before['now'] ?? 0);
 
@@ -73,7 +73,7 @@ task('statik:reload-phpfpm', function () {
             }
             sleep(2);
 
-            $after = json_decode((string) run("curl -s --max-time 10 '{$url}' || true"), true) ?: [];
+            $after = json_decode((string) run("curl -sL --max-redirs 3 --max-time 10 '{$url}' || true"), true) ?: [];
             $afterStart = (int) ($after['start_time'] ?? 0);
             $afterAge = (int) ($after['now'] ?? 0) - $afterStart;
 
