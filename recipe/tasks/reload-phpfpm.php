@@ -6,6 +6,8 @@ set('statik_reload_phpfpm_debounce_seconds', 60);
 set('statik_reload_phpfpm_symlink_wait_seconds', 60);
 set('statik_reload_phpfpm_freshness_seconds', 30);
 set('statik_reload_phpfpm_max_attempts', 2);
+set('statik_reload_phpfpm_preflight_attempts', 5);
+set('statik_reload_phpfpm_preflight_sleep_seconds', 15);
 
 desc('Reload PHP-FPM safely with mutex, debounce, and opcache validation');
 task('statik:reload-phpfpm', function () {
@@ -95,7 +97,8 @@ task('statik:reload-phpfpm', function () {
         // and the web server's view of the filesystem hasn't caught up.
         // Retry a few times before failing so a slow-storage shared host
         // doesn't trip the fast-fail path.
-        $preflightAttempts = 3;
+        $preflightAttempts = max(1, (int) get('statik_reload_phpfpm_preflight_attempts'));
+        $preflightSleep = max(0, (int) get('statik_reload_phpfpm_preflight_sleep_seconds'));
         $before = ['body' => '', 'http_code' => 0, 'json' => null];
         for ($i = 1; $i <= $preflightAttempts; $i++) {
             $before = $fetchProbe($url);
@@ -103,8 +106,8 @@ task('statik:reload-phpfpm', function () {
                 break;
             }
             if ($i < $preflightAttempts) {
-                writeln("<comment>statik:reload-phpfpm: pre-flight probe attempt {$i}/{$preflightAttempts} failed (HTTP {$before['http_code']}), retrying in 2s...</comment>");
-                sleep(2);
+                writeln("<comment>statik:reload-phpfpm: pre-flight probe attempt {$i}/{$preflightAttempts} failed (HTTP {$before['http_code']}), retrying in {$preflightSleep}s...</comment>");
+                sleep($preflightSleep);
             }
         }
         if ($before['http_code'] !== 200 || $before['json'] === null) {
@@ -170,9 +173,15 @@ task('statik:reload-phpfpm', function () {
         // Record whether the probe file is still on disk at cleanup time.
         // If the deploy failed with a web-server 404, this distinguishes
         // "rsync never landed the file" from "file is on disk but the web
-        // server's docroot or cache didn't see it".
-        $probeExists = trim((string) run("test -f {{release_path}}/public/{$probe} && echo present || echo missing"));
-        writeln("<comment>statik:reload-phpfpm: probe file {$probeExists} on disk before cleanup</comment>");
+        // server's docroot or cache didn't see it". Wrapped in its own
+        // try/catch so a transient SSH failure during the diagnostic can't
+        // shadow the real RuntimeException from the try block above.
+        try {
+            $probeExists = trim((string) run("test -f {{release_path}}/public/{$probe} && echo present || echo missing"));
+            writeln("<comment>statik:reload-phpfpm: probe file {$probeExists} on disk before cleanup</comment>");
+        } catch (\Throwable $e) {
+            writeln('<comment>statik:reload-phpfpm: could not check probe file on disk: ' . $e->getMessage() . '</comment>');
+        }
         run("rm -f {{release_path}}/public/{$probe} || true");
     }
 });
