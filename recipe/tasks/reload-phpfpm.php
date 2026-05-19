@@ -88,14 +88,27 @@ task('statik:reload-phpfpm', function () {
         $freshnessSeconds = (int) get('statik_reload_phpfpm_freshness_seconds');
         $maxAttempts = (int) get('statik_reload_phpfpm_max_attempts');
 
-        $before = $fetchProbe($url);
-        // Pre-flight: a non-JSON or non-200 response means the probe URL is
-        // misconfigured (wrong http_host, redirect target, htaccess routing
-        // the .php through Laravel, basic-auth challenge, etc.). Running the
-        // PHP-FPM reload now would still leave us unable to validate it, so
-        // fail fast with a message that names the actual cause.
+        // Pre-flight: a non-JSON or non-200 response usually means the probe
+        // URL is misconfigured (wrong http_host, redirect target, htaccess
+        // routing the .php through Laravel, basic-auth challenge, etc.), but
+        // it can also be a transient race where rsync just landed the file
+        // and the web server's view of the filesystem hasn't caught up.
+        // Retry a few times before failing so a slow-storage shared host
+        // doesn't trip the fast-fail path.
+        $preflightAttempts = 3;
+        $before = ['body' => '', 'http_code' => 0, 'json' => null];
+        for ($i = 1; $i <= $preflightAttempts; $i++) {
+            $before = $fetchProbe($url);
+            if ($before['http_code'] === 200 && $before['json'] !== null) {
+                break;
+            }
+            if ($i < $preflightAttempts) {
+                writeln("<comment>statik:reload-phpfpm: pre-flight probe attempt {$i}/{$preflightAttempts} failed (HTTP {$before['http_code']}), retrying in 2s...</comment>");
+                sleep(2);
+            }
+        }
         if ($before['http_code'] !== 200 || $before['json'] === null) {
-            throw new \RuntimeException('Pre-flight probe failed — ' . $describeProbe($before));
+            throw new \RuntimeException("Pre-flight probe failed after {$preflightAttempts} attempts — " . $describeProbe($before));
         }
 
         $beforeStart = (int) ($before['json']['start_time'] ?? 0);
@@ -154,6 +167,12 @@ task('statik:reload-phpfpm', function () {
             $after['http_code']
         ));
     } finally {
+        // Record whether the probe file is still on disk at cleanup time.
+        // If the deploy failed with a web-server 404, this distinguishes
+        // "rsync never landed the file" from "file is on disk but the web
+        // server's docroot or cache didn't see it".
+        $probeExists = trim((string) run("test -f {{release_path}}/public/{$probe} && echo present || echo missing"));
+        writeln("<comment>statik:reload-phpfpm: probe file {$probeExists} on disk before cleanup</comment>");
         run("rm -f {{release_path}}/public/{$probe} || true");
     }
 });
