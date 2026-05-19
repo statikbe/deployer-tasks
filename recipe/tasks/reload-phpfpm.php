@@ -31,27 +31,33 @@ task('statik:reload-phpfpm', function () {
     // serves as access control; removed in the finally block below.
     $probe = '_deploy_probe_' . bin2hex(random_bytes(24)) . '.php';
     upload(__DIR__ . '/stubs/opcache-probe.php', "{{release_path}}/public/{$probe}");
+
+    // Resolve {{http_host}} now so the URL is usable in both run() (which
+    // would template it anyway) and in error messages (which would otherwise
+    // surface the literal `{{http_host}}` placeholder).
+    $url = 'https://' . parse('{{http_host}}') . '/' . $probe;
+
+    // Keep basic-auth credentials out of $url: embedding them in the URL
+    // leaks them into the deploy log via every exception message that
+    // includes $url. Pass them through `-u` instead.
     $basicUser = (string) get('basic_auth_user', '');
     $basicPass = (string) get('basic_auth_password', '');
-    $authPrefix = '';
+    $curlAuthOpt = '';
     if ($basicUser !== '' && $basicPass !== '') {
-        $authPrefix = rawurlencode($basicUser) . ':' . rawurlencode($basicPass) . '@';
-    }
-    if ($authPrefix !== '') {
+        $curlAuthOpt = ' -u ' . escapeshellarg($basicUser . ':' . $basicPass);
         writeln('Basic auth has been set and will be used!');
     } else {
         writeln('No basic auth enabled, using curl without auth');
     }
-    $url = "https://{$authPrefix}{{http_host}}/{$probe}";
 
     // Fetch the probe URL. Body, HTTP code, and decoded JSON are returned
     // separately so an unexpected response (redirect HTML, Laravel 404 page,
     // basic-auth challenge, …) can be surfaced with its actual status and a
     // body snippet instead of silently being treated as `start_time=0`.
-    $fetchProbe = function (string $url): array {
+    $fetchProbe = function (string $url) use ($curlAuthOpt): array {
         $sep = '---HTTP_CODE---';
         $raw = (string) run(
-            "curl -sL --max-redirs 3 --max-time 10 -w '\\n{$sep}%{http_code}' '{$url}' || true"
+            "curl -sL --max-redirs 3 --max-time 10{$curlAuthOpt} -w '\\n{$sep}%{http_code}' '{$url}' || true"
         );
         $parts = explode("\n{$sep}", $raw, 2);
         $body = $parts[0] ?? '';
