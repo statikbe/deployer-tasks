@@ -34,6 +34,17 @@ task('statik:reload-phpfpm', function () {
     $probe = '_deploy_probe_' . bin2hex(random_bytes(24)) . '.php';
     upload(__DIR__ . '/stubs/opcache-probe.php', "{{release_path}}/public/{$probe}");
 
+    // Mirror the probe into the previous release. If PHP-FPM's realpath cache
+    // or the web server's symlink cache still resolves `current/public` to
+    // releases/N-1 (the window only the FPM reload itself can flush), the
+    // mirror keeps the probe reachable. The JSON only reports FPM
+    // start_time, so which copy executes doesn't change pre-flight or
+    // debounce semantics.
+    $mirrorProbe = has('previous_release');
+    if ($mirrorProbe) {
+        upload(__DIR__ . '/stubs/opcache-probe.php', "{{previous_release}}/public/{$probe}");
+    }
+
     // Resolve {{http_host}} now so the URL is usable in both run() (which
     // would template it anyway) and in error messages (which would otherwise
     // surface the literal `{{http_host}}` placeholder).
@@ -179,9 +190,16 @@ task('statik:reload-phpfpm', function () {
         try {
             $probeExists = trim((string) run("test -f {{release_path}}/public/{$probe} && echo present || echo missing"));
             writeln("<comment>statik:reload-phpfpm: probe file {$probeExists} on disk before cleanup</comment>");
+            if ($mirrorProbe) {
+                $mirrorExists = trim((string) run("test -f {{previous_release}}/public/{$probe} && echo present || echo missing"));
+                writeln("<comment>statik:reload-phpfpm: mirror probe file {$mirrorExists} on disk before cleanup</comment>");
+            }
         } catch (\Throwable $e) {
             writeln('<comment>statik:reload-phpfpm: could not check probe file on disk: ' . $e->getMessage() . '</comment>');
         }
         run("rm -f {{release_path}}/public/{$probe} || true");
+        if ($mirrorProbe) {
+            run("rm -f {{previous_release}}/public/{$probe} || true");
+        }
     }
 });
