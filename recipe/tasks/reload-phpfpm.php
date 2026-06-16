@@ -1,5 +1,10 @@
 <?php
+
 namespace Deployer;
+
+// Combell hosting exposes the reloadPHP.sh control-panel script that this task
+// drives. Hosts that are not on Combell set this to false to skip the task.
+set('combell_hosting', true);
 
 set('statik_reload_phpfpm_command', 'reloadPHP.sh');
 set('statik_reload_phpfpm_debounce_seconds', 60);
@@ -9,6 +14,14 @@ set('statik_reload_phpfpm_max_attempts', 2);
 
 desc('Reload PHP-FPM safely with mutex, debounce, and opcache validation');
 task('statik:reload-phpfpm', function () {
+    // Evaluated per-host: a mixed deploy may target Combell and non-Combell
+    // hosts, so this guard lives in the task body rather than around the hook.
+    if (! get('combell_hosting')) {
+        writeln('<comment>statik:reload-phpfpm: skipping — not Combell hosting (combell_hosting=false)</comment>');
+
+        return;
+    }
+
     // Resolve absolute paths — deploy_path / release_path may contain `~`.
     $deployPath = trim((string) run('cd {{deploy_path}} && pwd'));
     $releasePath = trim((string) run('cd {{release_path}} && pwd'));
@@ -29,8 +42,8 @@ task('statik:reload-phpfpm', function () {
 
     // Drop a one-shot opcache probe in webroot. The 192-bit random filename
     // serves as access control; removed in the finally block below.
-    $probe = '_deploy_probe_' . bin2hex(random_bytes(24)) . '.php';
-    upload(__DIR__ . '/stubs/opcache-probe.php', "{{release_path}}/public/{$probe}");
+    $probe = '_deploy_probe_'.bin2hex(random_bytes(24)).'.php';
+    upload(__DIR__.'/stubs/opcache-probe.php', "{{release_path}}/public/{$probe}");
     $url = "https://{{http_host}}/{$probe}";
 
     try {
@@ -47,6 +60,7 @@ task('statik:reload-phpfpm', function () {
         if ($beforeStart > 0 && $beforeNow - $beforeStart < $debounceSeconds) {
             $age = $beforeNow - $beforeStart;
             writeln("<comment>statik:reload-phpfpm: skipping — opcache reset {$age}s ago</comment>");
+
             return;
         }
 
@@ -58,7 +72,7 @@ task('statik:reload-phpfpm', function () {
 
             $reloadOutput = (string) run('{{statik_reload_phpfpm_command}}');
             if (! str_contains($reloadOutput, '"OK"')) {
-                throw new \RuntimeException('PHP-FPM reload command did not return "OK": ' . trim($reloadOutput));
+                throw new \RuntimeException('PHP-FPM reload command did not return "OK": '.trim($reloadOutput));
             }
             sleep(2);
 
@@ -70,6 +84,7 @@ task('statik:reload-phpfpm', function () {
             // own clock (rules out an unrelated old FPM restart).
             if ($afterStart > $beforeStart && $afterAge >= 0 && $afterAge < $freshnessSeconds) {
                 writeln("<info>statik:reload-phpfpm: validated (start_time {$beforeStart} -> {$afterStart}, age {$afterAge}s)</info>");
+
                 return;
             }
 

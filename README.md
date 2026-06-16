@@ -55,7 +55,7 @@ after('deploy', 'statik:voight');
 
 | Task | Description |
 |---|---|
-| `statik:reload-phpfpm` | Reload PHP-FPM safely with mutex, debounce, and opcache validation. Wired by both starters to `after('deploy:symlink', ...)`. |
+| `statik:reload-phpfpm` | Reload PHP-FPM safely with mutex, debounce, and opcache validation. Wired by both starters to `after('deploy:symlink', ...)`. Combell-specific — set `combell_hosting` to `false` (globally or per-host) to skip it on non-Combell hosts. |
 | `statik:voight` | Download and run the Voight versioning script in the release path. |
 
 More tasks (composer install with secret env, local-build asset rsync, maintenance banner, config-file sync) ship in upcoming releases.
