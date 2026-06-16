@@ -13,6 +13,8 @@ Reusable [Deployer 8](https://deployer.org/) tasks and recipes for Statik.be pro
 composer require --dev statikbe/deployer-tasks
 ```
 
+Or use our bitbucket images which already have this package installed.
+
 ## Usage
 
 ### Laravel projects
