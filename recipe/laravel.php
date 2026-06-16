@@ -1,10 +1,11 @@
 <?php
+
 namespace Deployer;
 
 // Deployer resolves recipe/* via its own include path (vendor/deployer/deployer/recipe/...).
 require 'recipe/laravel.php';
-require __DIR__ . '/tasks/reload-phpfpm.php';
-require __DIR__ . '/tasks/voight.php';
+require __DIR__.'/tasks/reload-phpfpm.php';
+require __DIR__.'/tasks/voight.php';
 
 // Statik.be opinionated defaults
 set('keep_releases', 5);

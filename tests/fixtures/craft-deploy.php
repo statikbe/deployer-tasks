@@ -1,7 +1,8 @@
 <?php
+
 namespace Deployer;
 
-require __DIR__ . '/../../recipe/craft.php';
+require __DIR__.'/../../recipe/craft.php';
 
 set('application', 'fixture');
 set('repository', 'git@example.com:fixture/fixture.git');

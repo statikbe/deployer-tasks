@@ -44,8 +44,8 @@ task('statik:reload-phpfpm', function () {
 
     // Drop a one-shot opcache probe in webroot. The 192-bit random filename
     // serves as access control; removed in the finally block below.
-    $probe = '_deploy_probe_' . bin2hex(random_bytes(24)) . '.php';
-    upload(__DIR__ . '/stubs/opcache-probe.php', "{{release_path}}/public/{$probe}");
+    $probe = '_deploy_probe_'.bin2hex(random_bytes(24)).'.php';
+    upload(__DIR__.'/stubs/opcache-probe.php', "{{release_path}}/public/{$probe}");
 
     // Mirror the probe into the previous release. If PHP-FPM's realpath cache
     // or the web server's symlink cache still resolves `current/public` to
@@ -55,13 +55,13 @@ task('statik:reload-phpfpm', function () {
     // debounce semantics.
     $mirrorProbe = has('previous_release');
     if ($mirrorProbe) {
-        upload(__DIR__ . '/stubs/opcache-probe.php', "{{previous_release}}/public/{$probe}");
+        upload(__DIR__.'/stubs/opcache-probe.php', "{{previous_release}}/public/{$probe}");
     }
 
     // Resolve {{http_host}} now so the URL is usable in both run() (which
     // would template it anyway) and in error messages (which would otherwise
     // surface the literal `{{http_host}}` placeholder).
-    $url = 'https://' . parse('{{http_host}}') . '/' . $probe;
+    $url = 'https://'.parse('{{http_host}}').'/'.$probe;
 
     // Keep basic-auth credentials out of $url: embedding them in the URL
     // leaks them into the deploy log via every exception message that
@@ -70,7 +70,7 @@ task('statik:reload-phpfpm', function () {
     $basicPass = (string) get('basic_auth_password', '');
     $curlAuthOpt = '';
     if ($basicUser !== '' && $basicPass !== '') {
-        $curlAuthOpt = ' -u ' . escapeshellarg($basicUser . ':' . $basicPass);
+        $curlAuthOpt = ' -u '.escapeshellarg($basicUser.':'.$basicPass);
         writeln('Basic auth has been set and will be used!');
     } else {
         writeln('No basic auth enabled, using curl without auth');
@@ -103,7 +103,7 @@ task('statik:reload-phpfpm', function () {
         if ($snippet === '') {
             $snippet = '(empty body)';
         } elseif (strlen($snippet) > 200) {
-            $snippet = substr($snippet, 0, 200) . '…';
+            $snippet = substr($snippet, 0, 200).'…';
         }
 
         return "probe URL {$url} returned HTTP {$resp['http_code']}, body: {$snippet}";
@@ -135,7 +135,7 @@ task('statik:reload-phpfpm', function () {
             }
         }
         if ($before['http_code'] !== 200 || $before['json'] === null) {
-            throw new \RuntimeException("Pre-flight probe failed after {$preflightAttempts} attempts — " . $describeProbe($before));
+            throw new \RuntimeException("Pre-flight probe failed after {$preflightAttempts} attempts — ".$describeProbe($before));
         }
 
         $beforeStart = (int) ($before['json']['start_time'] ?? 0);
@@ -168,7 +168,7 @@ task('statik:reload-phpfpm', function () {
                 // A non-JSON response would silently collapse to `start_time=0`
                 // below; throw with the response detail so the operator can
                 // diagnose what's actually wrong.
-                throw new \RuntimeException('Post-reload probe failed — ' . $describeProbe($after));
+                throw new \RuntimeException('Post-reload probe failed — '.$describeProbe($after));
             }
             $afterStart = (int) ($after['json']['start_time'] ?? 0);
             $afterAge = (int) ($after['json']['now'] ?? 0) - $afterStart;
@@ -210,7 +210,7 @@ task('statik:reload-phpfpm', function () {
                 writeln("<comment>statik:reload-phpfpm: mirror probe file {$mirrorExists} on disk before cleanup</comment>");
             }
         } catch (\Throwable $e) {
-            writeln('<comment>statik:reload-phpfpm: could not check probe file on disk: ' . $e->getMessage() . '</comment>');
+            writeln('<comment>statik:reload-phpfpm: could not check probe file on disk: '.$e->getMessage().'</comment>');
         }
         run("rm -f {{release_path}}/public/{$probe} || true");
         if ($mirrorProbe) {

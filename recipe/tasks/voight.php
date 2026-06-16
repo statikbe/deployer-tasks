@@ -1,4 +1,5 @@
 <?php
+
 namespace Deployer;
 
 // Voight is hosted on the thekindkids.be domain (Statik.be sister-org infrastructure).
