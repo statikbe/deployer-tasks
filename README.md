@@ -13,7 +13,8 @@ Reusable [Deployer 8](https://deployer.org/) tasks and recipes for Statik.be pro
 composer require --dev statikbe/deployer-tasks
 ```
 
-Or use our bitbucket images which already have this package installed.
+Or use our bitbucket images which already have this package installed. 
+If you update this package, please rebuild the bitbucket Docker images so the new changes are usable in the CI/CD pipelines. 
 
 ## Usage
 
