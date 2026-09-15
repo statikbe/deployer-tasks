@@ -6,6 +6,13 @@ namespace Deployer;
 // drives. Hosts that are not on Combell set this to false to skip the task.
 set('combell_hosting', true);
 
+// Host the opcache probe is fetched from. Defaults to {{http_host}}; override
+// per host when the deploy target is not reachable on its http_host (split
+// DNS, a vhost alias, or a host that answers on a different public domain).
+set('statik_reload_phpfpm_host', function () {
+    return get('http_host');
+});
+
 set('statik_reload_phpfpm_command', 'reloadPHP.sh');
 set('statik_reload_phpfpm_debounce_seconds', 60);
 set('statik_reload_phpfpm_symlink_wait_seconds', 60);
@@ -58,10 +65,10 @@ task('statik:reload-phpfpm', function () {
         upload(__DIR__.'/stubs/opcache-probe.php', "{{previous_release}}/{{public_path}}/{$probe}");
     }
 
-    // Resolve {{http_host}} now so the URL is usable in both run() (which
+    // Resolve the probe host now so the URL is usable in both run() (which
     // would template it anyway) and in error messages (which would otherwise
-    // surface the literal `{{http_host}}` placeholder).
-    $url = 'https://'.parse('{{http_host}}').'/'.$probe;
+    // surface a literal `{{...}}` placeholder).
+    $url = 'https://'.get('statik_reload_phpfpm_host').'/'.$probe;
 
     // Keep basic-auth credentials out of $url: embedding them in the URL
     // leaks them into the deploy log via every exception message that
@@ -115,10 +122,11 @@ task('statik:reload-phpfpm', function () {
         $maxAttempts = (int) get('statik_reload_phpfpm_max_attempts');
 
         // Pre-flight: a non-JSON or non-200 response usually means the probe
-        // URL is misconfigured (wrong http_host, redirect target, htaccess
-        // routing the .php through Laravel, basic-auth challenge, etc.), but
-        // it can also be a transient race where rsync just landed the file
-        // and the web server's view of the filesystem hasn't caught up.
+        // URL is misconfigured (wrong statik_reload_phpfpm_host, redirect
+        // target, htaccess routing the .php through Laravel, basic-auth
+        // challenge, etc.), but it can also be a transient race where rsync
+        // just landed the file and the web server's view of the filesystem
+        // hasn't caught up.
         // Retry a few times before failing so a slow-storage shared host
         // doesn't trip the fast-fail path.
         $preflightAttempts = max(1, (int) get('statik_reload_phpfpm_preflight_attempts'));

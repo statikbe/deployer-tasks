@@ -59,7 +59,7 @@ after('deploy', 'statik:voight');
 
 | Task | Description |
 |---|---|
-| `statik:reload-phpfpm` | Reload PHP-FPM safely with mutex, debounce, and opcache validation. Wired by both starters to `after('deploy:symlink', ...)`. Combell-specific — set `combell_hosting` to `false` (globally or per-host) to skip it on non-Combell hosts. |
+| `statik:reload-phpfpm` | Reload PHP-FPM safely with mutex, debounce, and opcache validation. Wired by both starters to `after('deploy:symlink', ...)`. Combell-specific — set `combell_hosting` to `false` (globally or per-host) to skip it on non-Combell hosts. Set `statik_reload_phpfpm_host` (defaults to `http_host`) to probe a different host. |
 | `statik:copy_env` | Copy the stage-specific `.env` file (`env_file`, relative to `release_path`) into `{{deploy_path}}/shared/.env`. No-ops when `env_file` is unset. Wired by the **Laravel** starter to `before('deploy:shared', ...)`. |
 | `statik:copy_htaccess` | Copy the stage-specific htaccess file (`htaccess_file`, relative to `release_path`) into `{{public_path}}/.htaccess`. No-ops when `htaccess_file` is unset. Wired by both starters to `before('deploy:shared', ...)`. |
 | `statik:voight` | Download and run the Voight versioning script in the release path. |
