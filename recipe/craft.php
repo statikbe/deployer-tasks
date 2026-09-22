@@ -9,8 +9,18 @@ require __DIR__.'/tasks/voight.php';
 require __DIR__.'/tasks/copy-stage-files.php';
 
 // Statik.be opinionated defaults
-set('keep_releases', 5);
-set('writable_mode', 'chown'); // Combell hosts do not have ACL installed (.env already shared by recipe/craftcms.php)
+// Combell hosting exposes the reloadPHP.sh control-panel script that this task
+// drives. Hosts that are not on Combell set this to false to skip the task.
+set('combell_hosting', true);
+
+set('keep_releases', 3);
+if (get('combell_hosting')) {
+    set('writable_mode', 'skip'); // Combell has the same user for file upload as www-data user, this makes deployment significantly faster.
+}
+else {
+    set('writable_mode', 'chown'); // Combell hosts do not have ACL installed (.env already shared by recipe/laravel.php)
+}
+
 set('public_path', 'web'); // Craft serves from web/ (the base craftcms recipe does not set public_path)
 
 // Seed the stage-specific webroot .htaccess before deploy:shared. No-ops unless

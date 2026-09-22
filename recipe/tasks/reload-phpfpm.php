@@ -2,10 +2,6 @@
 
 namespace Deployer;
 
-// Combell hosting exposes the reloadPHP.sh control-panel script that this task
-// drives. Hosts that are not on Combell set this to false to skip the task.
-set('combell_hosting', true);
-
 // Host the opcache probe is fetched from. Defaults to {{http_host}}; override
 // per host when the deploy target is not reachable on its http_host (split
 // DNS, a vhost alias, or a host that answers on a different public domain).
@@ -17,7 +13,7 @@ set('statik_reload_phpfpm_command', 'reloadPHP.sh');
 set('statik_reload_phpfpm_debounce_seconds', 60);
 set('statik_reload_phpfpm_symlink_wait_seconds', 60);
 set('statik_reload_phpfpm_freshness_seconds', 30);
-set('statik_reload_phpfpm_max_attempts', 2);
+set('statik_reload_phpfpm_max_attempts', 12);
 set('statik_reload_phpfpm_preflight_attempts', 5);
 set('statik_reload_phpfpm_preflight_sleep_seconds', 15);
 
@@ -25,7 +21,7 @@ desc('Reload PHP-FPM safely with mutex, debounce, and opcache validation');
 task('statik:reload-phpfpm', function () {
     // Evaluated per-host: a mixed deploy may target Combell and non-Combell
     // hosts, so this guard lives in the task body rather than around the hook.
-    if (! get('combell_hosting')) {
+    if (! get('combell_hosting', false)) {
         writeln('<comment>statik:reload-phpfpm: skipping — not Combell hosting (combell_hosting=false)</comment>');
 
         return;
