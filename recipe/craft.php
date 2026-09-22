@@ -8,7 +8,7 @@ namespace Deployer;
 set('combell_hosting', true);
 
 // Deployer resolves recipe/* via its own include path (vendor/deployer/deployer/recipe/...).
-require 'recipe/craftcms.php';
+require 'recipe/craft.php';
 require __DIR__.'/tasks/reload-phpfpm.php';
 require __DIR__.'/tasks/voight.php';
 require __DIR__.'/tasks/copy-stage-files.php';
