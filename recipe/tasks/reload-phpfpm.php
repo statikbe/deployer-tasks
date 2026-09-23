@@ -53,9 +53,9 @@ task('statik:reload-phpfpm', function () {
     // Mirror the probe into the previous release. If PHP-FPM's realpath cache
     // or the web server's symlink cache still resolves `current/public` to
     // releases/N-1 (the window only the FPM reload itself can flush), the
-    // mirror keeps the probe reachable. The JSON only reports FPM
-    // start_time, so which copy executes doesn't change pre-flight or
-    // debounce semantics.
+    // mirror keeps the probe reachable. The probe reports its own __FILE__,
+    // so a response from the mirror is recognised and never counts as a
+    // validated reload.
     $mirrorProbe = has('previous_release');
     if ($mirrorProbe) {
         upload(__DIR__.'/stubs/opcache-probe.php', "{{previous_release}}/{{public_path}}/{$probe}");
@@ -112,6 +112,16 @@ task('statik:reload-phpfpm', function () {
         return "probe URL {$url} returned HTTP {$resp['http_code']}, body: {$snippet}";
     };
 
+    // Which copy of the probe answered. A stale FPM worker (or a web server
+    // symlink cache) still resolving `current` to the previous release runs
+    // the mirror copy; only a response from the new release proves the
+    // request path has moved on. Matched on the release-relative suffix, not
+    // the absolute path: the web node may mount the site under a different
+    // prefix than the SSH node sees.
+    $newReleaseProbeSuffix = '/'.basename($releasePath).'/'.get('public_path').'/'.$probe;
+    $servedFile = fn (array $resp): string => (string) ($resp['json']['file'] ?? '');
+    $isServedByNewRelease = fn (array $resp): bool => str_ends_with($servedFile($resp), $newReleaseProbeSuffix);
+
     try {
         $debounceSeconds = (int) get('statik_reload_phpfpm_debounce_seconds');
         $freshnessSeconds = (int) get('statik_reload_phpfpm_freshness_seconds');
@@ -144,10 +154,14 @@ task('statik:reload-phpfpm', function () {
 
         $beforeStart = (int) ($before['json']['start_time'] ?? 0);
         $beforeNow = (int) ($before['json']['now'] ?? 0);
+        $beforeServedByNewRelease = $isServedByNewRelease($before);
+        writeln("statik:reload-phpfpm: pre-flight probe served by {$servedFile($before)}");
 
         // Debounce: a single FPM master typically serves every subsite on a
         // shared host, so a recent reload by a sibling deploy already covers ours.
-        if ($beforeStart > 0 && $beforeNow - $beforeStart < $debounceSeconds) {
+        // Only when the probe already runs from the new release: a fresh
+        // start_time from a worker still on the previous release covers nothing.
+        if ($beforeServedByNewRelease && $beforeStart > 0 && $beforeNow - $beforeStart < $debounceSeconds) {
             $age = $beforeNow - $beforeStart;
             writeln("<comment>statik:reload-phpfpm: skipping — opcache reset {$age}s ago</comment>");
 
@@ -178,23 +192,31 @@ task('statik:reload-phpfpm', function () {
             $afterAge = (int) ($after['json']['now'] ?? 0) - $afterStart;
 
             // Validate: opcache start_time advanced AND is fresh on the server's
-            // own clock (rules out an unrelated old FPM restart).
-            if ($afterStart > $beforeStart && $afterAge >= 0 && $afterAge < $freshnessSeconds) {
-                writeln("<info>statik:reload-phpfpm: validated (start_time {$beforeStart} -> {$afterStart}, age {$afterAge}s)</info>");
+            // own clock (rules out an unrelated old FPM restart) AND the probe
+            // ran from the new release (rules out a worker still on the old one).
+            if (
+                $afterStart > $beforeStart
+                && $afterAge >= 0
+                && $afterAge < $freshnessSeconds
+                && $isServedByNewRelease($after)
+            ) {
+                writeln("<info>statik:reload-phpfpm: validated (start_time {$beforeStart} -> {$afterStart}, age {$afterAge}s, served by {$servedFile($after)})</info>");
 
                 return;
             }
 
             if ($attempt < $maxAttempts) {
-                writeln('<comment>statik:reload-phpfpm: validation failed, retrying...</comment>');
+                writeln("<comment>statik:reload-phpfpm: validation failed (start_time {$afterStart}, age {$afterAge}s, served by {$servedFile($after)}), retrying...</comment>");
                 sleep(2);
             }
         }
 
         throw new \RuntimeException(sprintf(
-            'PHP-FPM reload validation failed: start_time=%d, age=%ds (after %d attempt%s); last probe response: HTTP %d',
+            'PHP-FPM reload validation failed: start_time=%d, age=%ds, served by %s, expected %s (after %d attempt%s); last probe response: HTTP %d',
             $afterStart,
             $afterAge,
+            $servedFile($after) ?: '(unknown)',
+            $releasePath,
             $maxAttempts,
             $maxAttempts === 1 ? '' : 's',
             $after['http_code']
