@@ -2,16 +2,17 @@
 
 namespace Deployer;
 
-// Deployer resolves recipe/* via its own include path (vendor/deployer/deployer/recipe/...).
-require 'recipe/craftcms.php';
-require __DIR__.'/tasks/reload-phpfpm.php';
-require __DIR__.'/tasks/voight.php';
-require __DIR__.'/tasks/copy-stage-files.php';
-
 // Statik.be opinionated defaults
 // Combell hosting exposes the reloadPHP.sh control-panel script that this task
 // drives. Hosts that are not on Combell set this to false to skip the task.
 set('combell_hosting', true);
+
+// Deployer resolves recipe/* via its own include path (vendor/deployer/deployer/recipe/...).
+require 'recipe/craft.php';
+require __DIR__.'/tasks/reload-phpfpm.php';
+require __DIR__.'/tasks/voight.php';
+require __DIR__.'/tasks/copy-stage-files.php';
+
 
 set('keep_releases', 3);
 if (get('combell_hosting')) {
