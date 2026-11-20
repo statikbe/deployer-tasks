@@ -2,7 +2,7 @@
 
 namespace Deployer;
 
-// `env_file` / `htaccess_file` are stage-specific source paths, relative to
+// `env_file` / `htaccess_file` / `robots_file` are stage-specific source paths, relative to
 // release_path, typically set per host (e.g. in hosts.yml). They are read with
 // an inline `null` default rather than declared with set(), so the tasks no-op
 // when unconfigured without ever shadowing a per-host or global value.
@@ -20,5 +20,13 @@ task('statik:copy_htaccess', function () {
     $htaccessFile = get('htaccess_file', null);
     if ($htaccessFile) {
         run("cp {{release_path}}/$htaccessFile {{release_path}}/{{public_path}}/.htaccess");
+    }
+});
+
+desc('Copy the stage-specific robots.txt file into the web root');
+task('statik:copy_robots', function () {
+    $robotsFile = get('robots_file', null);
+    if ($robotsFile) {
+        run("cp {{release_path}}/$robotsFile {{release_path}}/{{public_path}}/robots.txt");
     }
 });

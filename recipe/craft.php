@@ -8,7 +8,7 @@ namespace Deployer;
 set('combell_hosting', true);
 
 // Deployer resolves recipe/* via its own include path (vendor/deployer/deployer/recipe/...).
-require 'recipe/craft.php';
+require 'recipe/craftcms.php';
 require __DIR__.'/tasks/reload-phpfpm.php';
 require __DIR__.'/tasks/voight.php';
 require __DIR__.'/tasks/copy-stage-files.php';
@@ -28,6 +28,7 @@ set('public_path', 'web'); // Craft serves from web/ (the base craftcms recipe d
 // htaccess_file is set (typically per host). copy_env is intentionally not wired
 // here — Craft env handling is managed separately.
 before('deploy:shared', 'statik:copy_htaccess');
+before('deploy:shared', 'statik:copy_robots');
 
 // Reload PHP-FPM immediately after the new release symlink is in place so
 // requests pick up the new code path. statik:reload-phpfpm debounces and
