@@ -62,9 +62,10 @@ after('deploy', 'statik:voight');
 | `statik:reload-phpfpm` | Reload PHP-FPM safely with mutex, debounce, and opcache validation. Wired by both starters to `after('deploy:symlink', ...)`. Combell-specific — set `combell_hosting` to `false` (globally or per-host) to skip it on non-Combell hosts. Set `statik_reload_phpfpm_host` (defaults to `http_host`) to probe a different host. |
 | `statik:copy_env` | Copy the stage-specific `.env` file (`env_file`, relative to `release_path`) into `{{deploy_path}}/shared/.env`. No-ops when `env_file` is unset. Wired by the **Laravel** starter to `before('deploy:shared', ...)`. |
 | `statik:copy_htaccess` | Copy the stage-specific htaccess file (`htaccess_file`, relative to `release_path`) into `{{public_path}}/.htaccess`. No-ops when `htaccess_file` is unset. Wired by both starters to `before('deploy:shared', ...)`. |
+| `statik:copy_robots` | Copy the stage-specific robots file (`robots_file`, relative to `release_path`) into `{{public_path}}/robots.txt`. No-ops when `robots_file` is unset. Wired by both starters to `before('deploy:shared', ...)`. |
 | `statik:voight` | Download and run the Voight versioning script in the release path. |
 
-`env_file` and `htaccess_file` are read with an inline `null` default, so they never shadow a value set per host (e.g. in `hosts.yml`) or globally. Set them per host:
+`env_file`, `htaccess_file` and `robots_file` are read with an inline `null` default, so they never shadow a value set per host (e.g. in `hosts.yml`) or globally. Set them per host:
 
 ```yaml
 # hosts.yml
@@ -73,6 +74,7 @@ production:
   deploy_path: /var/www/my-app
   env_file: .env.production
   htaccess_file: .htaccess.production
+  robots_file: robots.production.txt
 ```
 
 `statik:copy_htaccess` (and `statik:reload-phpfpm`) resolve the web root via `{{public_path}}`. The Laravel base recipe sets this to `public`; the Craft starter sets it to `web`. If you require either task à la carte without a framework recipe, set `public_path` yourself.
